@@ -5,6 +5,7 @@ import { subscribeToSettings, AppSettings } from '../data/store';
 
 export default function Discover() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   
   const counterRef = useRef(null);
   const isInView = useInView(counterRef, { once: true, margin: "-100px" });
@@ -12,17 +13,20 @@ export default function Discover() {
   const rounded = useTransform(count, Math.round);
 
   useEffect(() => {
-    const unsub = subscribeToSettings((data) => setSettings(data));
+    const unsub = subscribeToSettings((data) => {
+      setSettings(data);
+      setSettingsLoaded(true);
+    });
     return () => unsub();
   }, []);
 
   const completedProjects = settings?.completedProjectsCount ?? 200;
 
   useEffect(() => {
-    if (isInView) {
+    if (isInView && settingsLoaded) {
       animate(count, completedProjects, { duration: 2.5, ease: "easeOut" });
     }
-  }, [isInView, completedProjects, count]);
+  }, [isInView, settingsLoaded, completedProjects, count]);
 
   return (
     <section className="py-32 px-6 relative" id="services">

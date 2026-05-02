@@ -21,7 +21,7 @@ export default function Admin() {
   });
 
   const [brandForm, setBrandForm] = useState<{name: string, logo: string}>({ name: '', logo: '' });
-  const [projectsCountForm, setProjectsCountForm] = useState(200);
+  const [projectsCountForm, setProjectsCountForm] = useState(0);
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, (currentUser) => {
@@ -47,6 +47,8 @@ export default function Admin() {
           setSettings(data);
           if (data && data.completedProjectsCount !== undefined) {
              setProjectsCountForm(data.completedProjectsCount);
+          } else if (!data) {
+             setProjectsCountForm(200);
           }
         });
         return () => {
@@ -304,8 +306,8 @@ export default function Admin() {
                 </label>
                 <label>
                   <span className="block text-xs font-mono text-white/50 mb-2 uppercase tracking-widest">Logo URL (PNG/SVG) OR Upload</span>
-                  <div className="flex gap-2">
-                    <input required={!brandForm.logo.startsWith('data:image')} type="text" className="flex-1 bg-black/40 border border-white/10 p-3 rounded-lg text-sm text-white" value={brandForm.logo.startsWith('data:image') ? '' : brandForm.logo} onChange={e => setBrandForm({...brandForm, logo: e.target.value})} placeholder={brandForm.logo.startsWith('data:image') ? "Image selected..." : "https://image.com/logo.png"} />
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input required={!brandForm.logo.startsWith('data:image')} type="text" className="flex-1 bg-black/40 border border-white/10 p-3 rounded-lg text-sm text-white min-w-0" value={brandForm.logo.startsWith('data:image') ? '' : brandForm.logo} onChange={e => setBrandForm({...brandForm, logo: e.target.value})} placeholder={brandForm.logo.startsWith('data:image') ? "Image selected..." : "https://image.com/logo.png"} />
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -328,7 +330,7 @@ export default function Admin() {
                     />
                     <label 
                       htmlFor="brand-logo-upload" 
-                      className="px-6 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-xs font-mono uppercase tracking-widest"
+                      className="px-6 py-3 sm:py-0 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-xs font-mono uppercase tracking-widest shrink-0"
                     >
                       Browse
                     </label>

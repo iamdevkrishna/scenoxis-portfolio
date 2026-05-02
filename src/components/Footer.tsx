@@ -153,7 +153,7 @@ export default function Footer() {
           <div className="flex flex-col justify-center space-y-16 lg:pl-20">
              <div>
                 <h4 className="text-[10px] font-mono text-white/30 mb-4 uppercase tracking-[0.3em]">Direct Inquiry</h4>
-                <a href="mailto:scenoxisofficial@gmail.com" className="text-2xl md:text-4xl font-display font-bold hover:text-brand-cyan transition-colors underline underline-offset-8 decoration-white/5 hover:decoration-brand-cyan/30 break-all">
+                <a href="mailto:scenoxisofficial@gmail.com" className="text-lg sm:text-2xl md:text-4xl font-display font-bold hover:text-brand-cyan transition-colors underline underline-offset-4 sm:underline-offset-8 decoration-white/5 hover:decoration-brand-cyan/30 break-all sm:break-normal">
                   scenoxisofficial@gmail.com
                 </a>
               </div>
