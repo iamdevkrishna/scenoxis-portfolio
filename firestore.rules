@@ -1,0 +1,151 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return request.auth.token.email_verified == true; }
+    
+    // Using bootstrap pattern: allow the specific user's email to act as an admin
+  function isAdmin() { 
+      return isSignedIn() && isVerified() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'devyadavofficial02@gmail.com' ||
+        (exists(/databases/$(database)/documents/settings/admins) && request.auth.token.email in get(/databases/$(database)/documents/settings/admins).data.allowedEmails)
+      ); 
+    }
+
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    function isValidAdmin(data) {
+      return data.keys().hasAll(['email', 'createdAt']) && data.keys().size() == 2
+        && data.email is string && data.email.size() <= 256
+        && data.createdAt == request.time;
+    }
+
+    match /admins/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow list: if false;
+      allow create: if isValidId(userId) && request.auth.uid == userId && isAdmin() && isValidAdmin(incoming());
+      allow update, delete: if false; // admins cannot be updated or deleted from client
+    }
+
+    function isValidVideoCreate(data) {
+      return data.keys().hasAll(['type', 'title', 'client', 'video', 'poster', 'embedUrl', 'format', 'category', 'tags', 'code', 'isTopShowreel', 'createdAt', 'updatedAt']) 
+        && data.keys().size() == 13
+        && data.type is string && data.type.size() <= 20 && data.type in ['showreel', 'work']
+        && data.title is string && data.title.size() <= 150
+        && data.client is string && data.client.size() <= 150
+        && data.video is string && data.video.size() <= 1000
+        && data.poster is string && data.poster.size() <= 1000
+        && data.embedUrl is string && data.embedUrl.size() <= 1000
+        && data.format is string && data.format.size() <= 10 && data.format in ['16:9', '9:16']
+        && data.category is string && data.category.size() <= 100
+        && data.tags is list && data.tags.size() <= 20 && (data.tags.size() == 0 || data.tags[0] is string)
+        && data.code is string && data.code.size() <= 100
+        && data.isTopShowreel is bool
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function isValidVideoUpdate(data) {
+      return data.type is string && data.type.size() <= 20 && data.type in ['showreel', 'work']
+        && data.title is string && data.title.size() <= 150
+        && data.client is string && data.client.size() <= 150
+        && data.video is string && data.video.size() <= 1000
+        && data.poster is string && data.poster.size() <= 1000
+        && data.embedUrl is string && data.embedUrl.size() <= 1000
+        && data.format is string && data.format.size() <= 10 && data.format in ['16:9', '9:16']
+        && data.category is string && data.category.size() <= 100
+        && data.tags is list && data.tags.size() <= 20 && (data.tags.size() == 0 || data.tags[0] is string)
+        && data.code is string && data.code.size() <= 100
+        && data.isTopShowreel is bool
+        && data.updatedAt == request.time;
+    }
+
+    match /videos/{videoId} {
+      // Public Read logic properly evaluating existing data, preventing blanket reads
+      allow get: if isValidId(videoId) && existing().type in ['showreel', 'work'];
+      allow list: if existing().type in ['showreel', 'work'];
+
+      allow create: if isValidId(videoId) && isAdmin() && isValidVideoCreate(incoming());
+      
+      allow update: if isValidId(videoId) && isAdmin() && isValidVideoUpdate(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'type', 'title', 'client', 'video', 'poster', 'embedUrl', 'format', 'category', 'tags', 'code', 'isTopShowreel', 'updatedAt'
+        ])
+      ) && incoming().createdAt == existing().createdAt;
+      
+      allow delete: if isValidId(videoId) && isAdmin();
+    }
+
+    function isValidBrandCreate(data) {
+      return data.keys().hasAll(['name', 'logo', 'createdAt']) 
+        && data.keys().size() == 3
+        && data.name is string && data.name.size() <= 100
+        && data.logo is string && data.logo.size() <= 1500000
+        && data.createdAt == request.time;
+    }
+
+    match /brands/{brandId} {
+      allow read: if true; // Public read for brands
+      allow create: if isValidId(brandId) && isAdmin() && isValidBrandCreate(incoming());
+      allow update: if false; // Only delete and recreate
+      allow delete: if isValidId(brandId) && isAdmin();
+    }
+
+    function isValidGeneralSettingsCreate(data) {
+      return data.keys().hasAll(['completedProjectsCount', 'updatedAt']) 
+        && data.keys().size() == 2
+        && data.completedProjectsCount is number
+        && data.updatedAt == request.time;
+    }
+
+    function isValidGeneralSettingsUpdate(data) {
+      return data.completedProjectsCount is number
+        && data.updatedAt == request.time;
+    }
+
+    function isValidAdminsSettingsCreate(data) {
+      return data.keys().hasAll(['allowedEmails', 'updatedAt'])
+        && data.keys().size() == 2
+        && data.allowedEmails is list
+        && data.allowedEmails.size() <= 100
+        && (data.allowedEmails.size() == 0 || data.allowedEmails[0] is string)
+        && data.updatedAt == request.time;
+    }
+
+    function isValidAdminsSettingsUpdate(data) {
+      return data.keys().hasAll(['allowedEmails', 'updatedAt'])
+        && data.allowedEmails is list
+        && data.allowedEmails.size() <= 100
+        && (data.allowedEmails.size() == 0 || data.allowedEmails[0] is string)
+        && data.updatedAt == request.time;
+    }
+
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId);
+      allow list: if true;
+
+      allow create: if isValidId(settingId) && isAdmin() && (
+        (settingId == 'general' && isValidGeneralSettingsCreate(incoming())) ||
+        (settingId == 'admins'  && isValidAdminsSettingsCreate(incoming()))
+      );
+      
+      allow update: if isValidId(settingId) && isAdmin() && (
+        (settingId == 'general' && isValidGeneralSettingsUpdate(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['completedProjectsCount', 'updatedAt'])) ||
+        (settingId == 'admins'  && isValidAdminsSettingsUpdate(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['allowedEmails', 'updatedAt']))
+      );
+      
+      allow delete: if false;
+    }
+  }
+}
+
